@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Snake Battle Royale</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Tela Inicial -->
+    <div id="start-screen" class="screen">
+      <h1 class="retro-title">SNAKE<br>BATTLE ROYALE</h1>
+      <div class="menu-container">
+        <input type="text" id="player-name" placeholder="Seu nome" maxlength="10">
+        <button id="create-room-btn" class="retro-btn">CRIAR SALA</button>
+        <button id="join-room-btn" class="retro-btn">ENTRAR EM SALA</button>
+        <button id="room-list-btn" class="retro-btn">LISTAR SALAS</button>
+      </div>
+    </div>
+
+    <!-- Tela de Entrada em Sala -->
+    <div id="join-screen" class="screen hidden">
+      <h2 class="retro-title">ENTRAR EM SALA</h2>
+      <div class="menu-container">
+        <input type="text" id="room-code" placeholder="Código da sala" maxlength="6">
+        <button id="join-btn" class="retro-btn">ENTRAR</button>
+        <button id="back-btn" class="retro-btn">VOLTAR</button>
+      </div>
+    </div>
+
+    <!-- Tela de Lista de Salas -->
+    <div id="room-list-screen" class="screen hidden">
+      <h2 class="retro-title">SALAS DISPONÍVEIS</h2>
+      <div id="rooms-container" class="rooms-list">
+        <!-- As salas serão adicionadas aqui dinamicamente -->
+      </div>
+      <div class="menu-container">
+        <button id="refresh-rooms-btn" class="retro-btn">ATUALIZAR</button>
+        <button id="back-from-list-btn" class="retro-btn">VOLTAR</button>
+      </div>
+    </div>
+
+    <!-- Tela de Sala de Espera -->
+    <div id="lobby-screen" class="screen hidden">
+      <h2 class="retro-title">SALA DE ESPERA</h2>
+      <div class="room-info">
+        <p>Código da Sala: <span id="room-id-display">XXXXXX</span></p>
+      </div>
+      <div class="player-list-container">
+        <h3>Jogadores:</h3>
+        <ul id="player-list">
+          <!-- Os jogadores serão adicionados aqui dinamicamente -->
+        </ul>
+      </div>
+      <div class="menu-container">
+        <button id="start-game-btn" class="retro-btn">INICIAR JOGO</button>
+        <button id="leave-room-btn" class="retro-btn">SAIR DA SALA</button>
+      </div>
+    </div>
+
+    <!-- Tela do Jogo -->
+    <div id="game-screen" class="screen hidden">
+      <div class="game-info">
+        <div id="score-container">
+          <p>Pontuação: <span id="score">0</span></p>
+          <p>Jogadores vivos: <span id="alive-players">0</span></p>
+        </div>
+      </div>
+      <canvas id="game-canvas"></canvas>
+      
+      <!-- Controles para Mobile -->
+      <div id="mobile-controls" class="hidden">
+        <div class="control-btn" id="up-btn">&#9650;</div>
+        <div class="controls-row">
+          <div class="control-btn" id="left-btn">&#9664;</div>
+          <div class="control-btn" id="right-btn">&#9654;</div>
+        </div>
+        <div class="control-btn" id="down-btn">&#9660;</div>
+      </div>
+    </div>
+
+    <!-- Tela de Fim de Jogo -->
+    <div id="game-over-screen" class="screen hidden">
+      <h2 class="retro-title">FIM DE JOGO</h2>
+      <div id="winner-container">
+        <p id="winner-text">Vencedor: <span id="winner-name">Ninguém</span></p>
+      </div>
+      <div class="menu-container">
+        <button id="play-again-btn" class="retro-btn">JOGAR NOVAMENTE</button>
+        <button id="main-menu-btn" class="retro-btn">MENU PRINCIPAL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
