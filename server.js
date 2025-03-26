@@ -20,6 +20,7 @@ const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
 const TARGET_FPS = 10; // Reduzido para 10 FPS para minimizar o lag
 const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
+const SNAKE_MOVE_INTERVAL = 200; // A cobra se move a cada 200ms, independente do FPS
 const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
 const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
 const SHRINK_AMOUNT = 1; // Quantidade de células que a zona encolhe por vez
@@ -44,7 +45,8 @@ function createGameRoom() {
     gameOver: false,
     winner: null,
     lastUpdateTime: Date.now(),
-    frameTimer: 0 // Temporizador para controle de FPS
+    frameTimer: 0, // Temporizador para controle de FPS
+    snakeMoveTimer: 0 // Temporizador para controle de movimento da cobra
   };
   
   // Gerar comida inicial
@@ -128,94 +130,92 @@ function updateGameState(roomId) {
   const deltaTime = currentTime - gameState.lastUpdateTime;
   gameState.lastUpdateTime = currentTime;
   
-  // Verificar se é hora de encolher a zona
-  if (currentTime >= gameState.safeZone.nextShrinkTime && gameState.safeZone.radius > 5) {
-    gameState.safeZone.radius -= SHRINK_AMOUNT;
-    gameState.safeZone.nextShrinkTime = currentTime + SHRINK_INTERVAL;
-    io.to(roomId).emit('zoneUpdate', gameState.safeZone);
-  }
-  
-  // Mover cobras
-  let alivePlayers = 0;
-  let lastAlivePlayer = null;
-  
-  gameState.players.forEach((player, playerId) => {
-    if (!player.alive) return;
+  // Verificar se é hora de mover a cobra
+  if (gameState.snakeMoveTimer >= SNAKE_MOVE_INTERVAL) {
+    gameState.snakeMoveTimer = 0;
     
-    alivePlayers++;
-    lastAlivePlayer = playerId;
+    // Mover cobras
+    let alivePlayers = 0;
+    let lastAlivePlayer = null;
     
-    // Atualizar direção
-    player.direction = { ...player.nextDirection };
-    
-    // Se a cobra não estiver se movendo, pular
-    if (player.direction.x === 0 && player.direction.y === 0) return;
-    
-    // Mover a cabeça
-    const head = { ...player.segments[0] };
-    head.x += player.direction.x;
-    head.y += player.direction.y;
-    
-    // Verificar colisão com as bordas
-    if (head.x < 0) head.x = gameState.gridSize - 1;
-    if (head.x >= gameState.gridSize) head.x = 0;
-    if (head.y < 0) head.y = gameState.gridSize - 1;
-    if (head.y >= gameState.gridSize) head.y = 0;
-    
-    // Verificar se está fora da zona segura
-    const centerX = gameState.gridSize / 2;
-    const centerY = gameState.gridSize / 2;
-    const distance = Math.sqrt(Math.pow(head.x - centerX, 2) + Math.pow(head.y - centerY, 2));
-    
-    if (distance > gameState.safeZone.radius) {
-      player.alive = false;
-      io.to(roomId).emit('playerDied', playerId);
-      return;
-    }
-    
-    // Verificar colisão com outras cobras (incluindo a própria)
-    let collision = false;
-    gameState.players.forEach((otherPlayer) => {
-      if (!otherPlayer.alive) return;
+    gameState.players.forEach((player, playerId) => {
+      if (!player.alive) return;
       
-      otherPlayer.segments.forEach((segment, index) => {
-        // Ignorar a cabeça da própria cobra
-        if (otherPlayer.id === player.id && index === 0) return;
-        
-        if (head.x === segment.x && head.y === segment.y) {
-          collision = true;
-        }
-      });
-    });
-    
-    if (collision) {
-      player.alive = false;
-      io.to(roomId).emit('playerDied', playerId);
-      return;
-    }
-    
-    // Verificar colisão com comida
-    let foodEaten = false;
-    gameState.food = gameState.food.filter((food, index) => {
-      if (head.x === food.x && head.y === food.y) {
-        foodEaten = true;
-        player.score += 10;
-        return false; // Remover a comida
+      alivePlayers++;
+      lastAlivePlayer = playerId;
+      
+      // Atualizar direção
+      player.direction = { ...player.nextDirection };
+      
+      // Se a cobra não estiver se movendo, pular
+      if (player.direction.x === 0 && player.direction.y === 0) return;
+      
+      // Mover a cabeça
+      const head = { ...player.segments[0] };
+      head.x += player.direction.x;
+      head.y += player.direction.y;
+      
+      // Verificar colisão com as bordas
+      if (head.x < 0) head.x = gameState.gridSize - 1;
+      if (head.x >= gameState.gridSize) head.x = 0;
+      if (head.y < 0) head.y = gameState.gridSize - 1;
+      if (head.y >= gameState.gridSize) head.y = 0;
+      
+      // Verificar se está fora da zona segura
+      const centerX = gameState.gridSize / 2;
+      const centerY = gameState.gridSize / 2;
+      const distance = Math.sqrt(Math.pow(head.x - centerX, 2) + Math.pow(head.y - centerY, 2));
+      
+      if (distance > gameState.safeZone.radius) {
+        player.alive = false;
+        io.to(roomId).emit('playerDied', playerId);
+        return;
       }
-      return true;
+      
+      // Verificar colisão com outras cobras (incluindo a própria)
+      let collision = false;
+      gameState.players.forEach((otherPlayer) => {
+        if (!otherPlayer.alive) return;
+        
+        otherPlayer.segments.forEach((segment, index) => {
+          // Ignorar a cabeça da própria cobra
+          if (otherPlayer.id === player.id && index === 0) return;
+          
+          if (head.x === segment.x && head.y === segment.y) {
+            collision = true;
+          }
+        });
+      });
+      
+      if (collision) {
+        player.alive = false;
+        io.to(roomId).emit('playerDied', playerId);
+        return;
+      }
+      
+      // Verificar colisão com comida
+      let foodEaten = false;
+      gameState.food = gameState.food.filter((food, index) => {
+        if (head.x === food.x && head.y === food.y) {
+          foodEaten = true;
+          player.score += 10;
+          return false; // Remover a comida
+        }
+        return true;
+      });
+      
+      // Adicionar nova cabeça
+      player.segments.unshift(head);
+      
+      // Remover a cauda se não comeu
+      if (!foodEaten) {
+        player.segments.pop();
+      } else {
+        // Gerar nova comida
+        spawnFood(gameState);
+      }
     });
-    
-    // Adicionar nova cabeça
-    player.segments.unshift(head);
-    
-    // Remover a cauda se não comeu
-    if (!foodEaten) {
-      player.segments.pop();
-    } else {
-      // Gerar nova comida
-      spawnFood(gameState);
-    }
-  });
+  }
   
   // Verificar condição de vitória
   if (alivePlayers <= 1 && gameState.players.size > 1) {
@@ -241,6 +241,9 @@ function updateGameState(roomId) {
     food: gameState.food,
     safeZone: gameState.safeZone
   });
+  
+  // Atualizar temporizador de movimento da cobra
+  gameState.snakeMoveTimer += deltaTime;
 }
 
 // Configurar Socket.IO
@@ -333,6 +336,7 @@ io.on('connection', (socket) => {
     gameState.gameStarted = true;
     gameState.lastUpdateTime = Date.now();
     gameState.frameTimer = 0; // Temporizador para controle de FPS
+    gameState.snakeMoveTimer = 0; // Temporizador para controle de movimento da cobra
     
     io.to(roomId).emit('gameStarted');
     
