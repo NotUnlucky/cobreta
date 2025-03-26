@@ -8,7 +8,7 @@ Um jogo da cobrinha multiplayer estilo battle royale, onde os jogadores competem
 - **Battle Royale**: Zona segura que diminui com o tempo
 - **Multiplayer**: Crie ou entre em salas para jogar com amigos
 - **Responsivo**: Funciona em dispositivos desktop e mobile com controles adaptados
-- **Sistema de Salas**: Entre usando cu00f3digo ou navegue pela lista de salas disponu00edveis
+- **Sistema de Salas**: Entre usando codigo ou navegue pela lista de salas disponu00edveis
 
 ## Como Jogar
 
@@ -17,7 +17,7 @@ Um jogo da cobrinha multiplayer estilo battle royale, onde os jogadores competem
 3. Aguarde outros jogadores ou inicie o jogo
 4. Use as setas do teclado (desktop) ou os controles na tela (mobile) para mover sua cobra
 5. Colete comida para crescer e evite colidir com outras cobras ou sair da zona segura
-6. O u00faltimo jogador vivo vence!
+6. O ultimo jogador vivo vence!
 
 ## Controles
 

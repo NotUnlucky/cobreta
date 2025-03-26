@@ -10,6 +10,8 @@ class Game {
     this.cellSize = 0;
     this.players = new Map();
     this.food = [];
+    this.powerups = []; // Array para armazenar power-ups
+    this.bullets = []; // Array para armazenar tiros
     this.safeZone = {
       radius: gridSize / 2,
       shrinking: false
@@ -54,42 +56,34 @@ class Game {
   // Atualizar o estado do jogo com dados do servidor
   updateGameState(data) {
     // Atualizar jogadores
-    if (data.players) {
-      // Limpar jogadores que nu00e3o estu00e3o mais no jogo
-      const currentPlayerIds = data.players.map(p => p.id);
-      Array.from(this.players.keys()).forEach(id => {
-        if (!currentPlayerIds.includes(id)) {
-          this.players.delete(id);
-        }
-      });
+    this.players.clear();
+    data.players.forEach(player => {
+      this.players.set(player.id, player);
       
-      // Atualizar ou adicionar jogadores
-      data.players.forEach(playerData => {
-        const player = this.players.get(playerData.id) || {};
-        Object.assign(player, playerData);
-        this.players.set(playerData.id, player);
-        
-        // Atualizar pontuau00e7u00e3o do jogador local
-        if (playerData.id === this.localPlayerId) {
-          this.score = playerData.score;
-          document.getElementById('score').textContent = this.score;
-        }
-      });
-      
-      // Atualizar contador de jogadores vivos
-      const alivePlayers = Array.from(this.players.values()).filter(p => p.alive).length;
-      document.getElementById('alive-players').textContent = alivePlayers;
-    }
+      // Atualizar pontuau00e7u00e3o do jogador local
+      if (player.id === this.localPlayerId) {
+        this.score = player.score;
+        document.getElementById('score').textContent = this.score;
+      }
+    });
     
     // Atualizar comida
-    if (data.food) {
-      this.food = data.food;
-    }
+    this.food = data.food;
+    
+    // Atualizar power-ups
+    this.powerups = data.powerups || [];
+    
+    // Atualizar tiros
+    this.bullets = data.bullets || [];
     
     // Atualizar zona segura
     if (data.safeZone) {
       this.safeZone = data.safeZone;
     }
+    
+    // Atualizar contagem de jogadores vivos
+    const alivePlayers = Array.from(this.players.values()).filter(p => p.alive).length;
+    document.getElementById('alive-players').textContent = alivePlayers;
   }
   
   // Atualizar o temporizador de encolhimento da zona
@@ -164,6 +158,12 @@ class Game {
     
     // Desenhar a comida
     this.drawFood();
+    
+    // Desenhar os power-ups
+    this.drawPowerups();
+    
+    // Desenhar os tiros
+    this.drawBullets();
     
     // Desenhar as cobras
     this.drawSnakes();
@@ -334,6 +334,49 @@ class Game {
     
     // Desenhar o texto
     this.ctx.fillText(`A zona fecha em: ${formattedTime}`, this.canvas.width - 10, 10);
+  }
+  
+  // Desenhar os power-ups
+  drawPowerups() {
+    this.ctx.font = `${Math.floor(this.cellSize * 0.8)}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    this.powerups.forEach(powerup => {
+      const x = powerup.x * this.cellSize + this.cellSize / 2;
+      const y = powerup.y * this.cellSize + this.cellSize / 2;
+      
+      // Desenhar fundo brilhante para o power-up
+      this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, this.cellSize * 0.7, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Desenhar power-up como um emoji de arma
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillText('\uD83D\uDD2B', x, y); // Emoji de arma (pistola)
+      
+      // Adicionar efeito pulsante
+      const pulseSize = 1.2 + Math.sin(Date.now() / 200) * 0.2;
+      this.ctx.strokeStyle = '#00ff00';
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, this.cellSize * 0.7 * pulseSize, 0, Math.PI * 2);
+      this.ctx.stroke();
+    });
+  }
+  
+  // Desenhar os tiros
+  drawBullets() {
+    this.ctx.fillStyle = '#ff0000';
+    
+    this.bullets.forEach(bullet => {
+      const x = bullet.x * this.cellSize;
+      const y = bullet.y * this.cellSize;
+      
+      // Desenhar tiro como um quadrado vermelho
+      this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+    });
   }
 }
 

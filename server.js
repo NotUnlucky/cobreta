@@ -18,12 +18,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configurações do jogo
 const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
-const TARGET_FPS = 20; // Alterado para 20 FPS para um equilíbrio entre fluidez e desempenho
+const TARGET_FPS = 25; // Alterado para 20 FPS para um equilíbrio entre fluidez e desempenho
 const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
-const SNAKE_MOVE_INTERVAL = 200; // A cobra se move a cada 200ms, independente do FPS
+const SNAKE_MOVE_INTERVAL = 350; // A cobra se move a cada 350ms, velocidade mais adequada para jogar
 const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
 const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
 const SHRINK_AMOUNT = 1; // Quantidade de células que a zona encolhe por vez
+const POWERUP_SPAWN_RATE = 0.005; // Probabilidade de power-up aparecer por tick
+const BULLET_SPEED = 0.5; // Velocidade dos tiros em células por frame
 
 // Armazenar salas de jogo
 const gameRooms = new Map();
@@ -35,6 +37,8 @@ function createGameRoom() {
   const gameState = {
     players: new Map(),
     food: [],
+    powerups: [], // Array para armazenar power-ups
+    bullets: [], // Array para armazenar tiros
     gridSize: GRID_SIZE,
     safeZone: {
       radius: GRID_SIZE / 2,
@@ -82,34 +86,72 @@ function spawnFood(gameState) {
   }
 }
 
+// Função para gerar power-up aleatoriamente
+function spawnPowerup(gameState) {
+  // Verificar se já atingiu o limite de 2 power-ups
+  if (gameState.powerups.length >= 2) {
+    return; // Não gerar mais power-ups se já tiver 2
+  }
+  
+  const x = Math.floor(Math.random() * gameState.gridSize);
+  const y = Math.floor(Math.random() * gameState.gridSize);
+  
+  // Verificar se está dentro da zona segura
+  const centerX = gameState.gridSize / 2;
+  const centerY = gameState.gridSize / 2;
+  const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+  
+  if (distance <= gameState.safeZone.radius) {
+    gameState.powerups.push({ x, y, type: 'gun' }); // Power-up de arma
+  } else {
+    // Tentar novamente se estiver fora da zona
+    spawnPowerup(gameState);
+  }
+}
+
 // Função para criar uma cobra para um novo jogador
 function createSnake(gameState, playerId) {
   // Posição aleatória dentro da zona segura
-  const centerX = gameState.gridSize / 2;
-  const centerY = gameState.gridSize / 2;
+  let x, y;
+  let validPosition = false;
   
-  // Gerar posição aleatória dentro da zona segura
-  const angle = Math.random() * 2 * Math.PI;
-  const distance = Math.random() * (gameState.safeZone.radius * 0.7); // 70% do raio para não ficar muito perto da borda
-  
-  const headX = Math.floor(centerX + Math.cos(angle) * distance);
-  const headY = Math.floor(centerY + Math.sin(angle) * distance);
-  
-  // Criar segmentos da cobra
-  const segments = [];
-  for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
-    segments.push({ x: headX, y: headY });
+  // Tentar encontrar uma posição válida para a cobra
+  while (!validPosition) {
+    // Posição aleatória
+    x = Math.floor(Math.random() * gameState.gridSize);
+    y = Math.floor(Math.random() * gameState.gridSize);
+    
+    // Verificar se está dentro da zona segura
+    const centerX = gameState.gridSize / 2;
+    const centerY = gameState.gridSize / 2;
+    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+    
+    if (distance <= gameState.safeZone.radius - 2) {
+      validPosition = true;
+    }
   }
   
-  return {
+  // Criar cobra
+  const snake = {
     id: playerId,
-    segments,
-    direction: { x: 0, y: 0 },
-    nextDirection: { x: 0, y: 0 },
-    score: 0,
+    segments: [],
+    direction: 'right',
+    nextDirection: 'right',
     alive: true,
-    color: getRandomColor()
+    score: 0,
+    color: getRandomColor(),
+    hasGun: false, // Novo atributo para indicar se o jogador tem uma arma
+    canShoot: false // Novo atributo para controlar se o jogador pode atirar
   };
+  
+  // Adicionar segmentos iniciais
+  for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
+    snake.segments.unshift({ x: x - i, y });
+  }
+  
+  // Adicionar ao estado do jogo
+  gameState.players.set(playerId, snake);
+  return snake;
 }
 
 // Gerar cor aleatória para a cobra
@@ -125,6 +167,125 @@ function getRandomColor() {
     '#8C33FF'  // Roxo
   ];
   return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Função para criar um tiro
+function createBullet(gameState, playerId) {
+  const player = gameState.players.get(playerId);
+  if (!player || !player.alive || !player.hasGun || !player.canShoot) return;
+  
+  // Obter a cabeça da cobra
+  const head = player.segments[0];
+  let directionX = 0;
+  let directionY = 0;
+  
+  // Definir a direção do tiro com base na direção da cobra
+  switch (player.direction) {
+    case 'up':
+      directionY = -1;
+      break;
+    case 'down':
+      directionY = 1;
+      break;
+    case 'left':
+      directionX = -1;
+      break;
+    case 'right':
+      directionX = 1;
+      break;
+  }
+  
+  // Criar o tiro
+  const bullet = {
+    x: head.x,
+    y: head.y,
+    directionX,
+    directionY,
+    ownerId: playerId,
+    active: true
+  };
+  
+  // Adicionar o tiro ao jogo
+  gameState.bullets.push(bullet);
+  
+  // Impedir que o jogador atire novamente até pegar outro power-up
+  player.canShoot = false;
+  player.hasGun = false;
+  
+  return bullet;
+}
+
+// Função para atualizar os tiros
+function updateBullets(gameState) {
+  const bulletsToRemove = [];
+  
+  // Atualizar posição dos tiros
+  gameState.bullets.forEach((bullet, index) => {
+    if (!bullet.active) {
+      bulletsToRemove.push(index);
+      return;
+    }
+    
+    // Mover o tiro
+    bullet.x += bullet.directionX * BULLET_SPEED;
+    bullet.y += bullet.directionY * BULLET_SPEED;
+    
+    // Verificar se o tiro saiu do mapa
+    if (bullet.x < 0 || bullet.x >= gameState.gridSize || 
+        bullet.y < 0 || bullet.y >= gameState.gridSize) {
+      bulletsToRemove.push(index);
+      return;
+    }
+    
+    // Verificar se o tiro saiu da zona segura
+    const centerX = gameState.gridSize / 2;
+    const centerY = gameState.gridSize / 2;
+    const distance = Math.sqrt(Math.pow(bullet.x - centerX, 2) + Math.pow(bullet.y - centerY, 2));
+    if (distance > gameState.safeZone.radius) {
+      bulletsToRemove.push(index);
+      return;
+    }
+    
+    // Verificar colisões com jogadores
+    gameState.players.forEach((player, playerId) => {
+      // Não verificar colisão com o próprio atirador
+      if (playerId === bullet.ownerId || !player.alive) return;
+      
+      // Verificar colisão com cada segmento da cobra
+      player.segments.forEach((segment, segmentIndex) => {
+        // Verificar se o tiro atingiu um segmento
+        if (Math.floor(bullet.x) === segment.x && Math.floor(bullet.y) === segment.y) {
+          // Marcar o tiro para remoção
+          bulletsToRemove.push(index);
+          
+          // Aplicar dano à cobra
+          if (player.segments.length > 3) {
+            // Reduzir o tamanho da cobra em 3 segmentos
+            player.segments = player.segments.slice(0, player.segments.length - 3);
+            // Notificar o jogador que foi atingido
+            io.to(playerId).emit('playerHit');
+          } else {
+            // Matar a cobra se ela tiver 3 ou menos segmentos
+            player.alive = false;
+            // Notificar o jogador que morreu
+            io.to(playerId).emit('playerDied', playerId);
+            // Dar pontos para o atirador
+            const shooter = gameState.players.get(bullet.ownerId);
+            if (shooter && shooter.alive) {
+              shooter.score += 10;
+            }
+          }
+          
+          return;
+        }
+      });
+    });
+  });
+  
+  // Remover tiros inativos
+  for (let i = bulletsToRemove.length - 1; i >= 0; i--) {
+    gameState.bullets.splice(bulletsToRemove[i], 1);
+  }
 }
 
 // Atualizar o estado do jogo
@@ -165,6 +326,21 @@ function updateGameState(roomId) {
         spawnFood(gameState);
       }
     }
+    
+    // Verificar e remover power-ups que estão fora da zona segura
+    const powerupsToRemove = [];
+    
+    gameState.powerups.forEach((powerup, index) => {
+      const distance = Math.sqrt(Math.pow(powerup.x - centerX, 2) + Math.pow(powerup.y - centerY, 2));
+      if (distance > gameState.safeZone.radius) {
+        powerupsToRemove.push(index);
+      }
+    });
+    
+    // Remover power-ups de trás para frente
+    for (let i = powerupsToRemove.length - 1; i >= 0; i--) {
+      gameState.powerups.splice(powerupsToRemove[i], 1);
+    }
   }
   
   // Calcular tempo restante até o próximo encolhimento
@@ -195,15 +371,29 @@ function updateGameState(roomId) {
       if (!player.alive) return;
       
       // Atualizar direção
-      player.direction = { ...player.nextDirection };
-      
-      // Se a cobra não estiver se movendo, pular
-      if (player.direction.x === 0 && player.direction.y === 0) return;
+      player.direction = player.nextDirection;
       
       // Mover a cabeça
       const head = { ...player.segments[0] };
-      head.x += player.direction.x;
-      head.y += player.direction.y;
+      
+      // Converter direção string para movimento
+      switch (player.direction) {
+        case 'up':
+          head.y -= 1;
+          break;
+        case 'down':
+          head.y += 1;
+          break;
+        case 'left':
+          head.x -= 1;
+          break;
+        case 'right':
+          head.x += 1;
+          break;
+        default:
+          // Se não houver direção, não mover
+          return;
+      }
       
       // Verificar colisão com as bordas
       if (head.x < 0) head.x = gameState.gridSize - 1;
@@ -254,6 +444,21 @@ function updateGameState(roomId) {
         return true;
       });
       
+      // Verificar colisão com power-ups
+      gameState.powerups = gameState.powerups.filter((powerup, index) => {
+        if (head.x === powerup.x && head.y === powerup.y) {
+          // Aplicar efeito do power-up
+          if (powerup.type === 'gun') {
+            player.hasGun = true;
+            player.canShoot = true;
+            // Notificar o jogador que pegou uma arma
+            io.to(playerId).emit('gunCollected');
+          }
+          return false; // Remover o power-up
+        }
+        return true;
+      });
+      
       // Adicionar nova cabeça
       player.segments.unshift(head);
       
@@ -277,6 +482,9 @@ function updateGameState(roomId) {
     });
   }
   
+  // Atualizar tiros
+  updateBullets(gameState);
+  
   // Verificar condição de vitória
   if (alivePlayers <= 1 && gameState.players.size > 1) {
     gameState.gameOver = true;
@@ -289,6 +497,11 @@ function updateGameState(roomId) {
     spawnFood(gameState);
   }
   
+  // Chance de gerar power-up aleatório
+  if (Math.random() < POWERUP_SPAWN_RATE) {
+    spawnPowerup(gameState);
+  }
+  
   // Enviar atualização para todos os jogadores na sala
   io.to(roomId).emit('gameUpdate', {
     players: Array.from(gameState.players.entries()).map(([id, player]) => ({
@@ -299,7 +512,9 @@ function updateGameState(roomId) {
       color: player.color
     })),
     food: gameState.food,
-    safeZone: gameState.safeZone
+    powerups: gameState.powerups,
+    safeZone: gameState.safeZone,
+    bullets: gameState.bullets
   });
   
   // Atualizar temporizador de movimento da cobra
@@ -449,16 +664,25 @@ io.on('connection', (socket) => {
       // Evitar que a cobra volte sobre si mesma
       const currentDir = player.direction;
       if (
-        (direction.x === 1 && currentDir.x === -1) ||
-        (direction.x === -1 && currentDir.x === 1) ||
-        (direction.y === 1 && currentDir.y === -1) ||
-        (direction.y === -1 && currentDir.y === 1)
+        (direction === 'up' && currentDir === 'down') ||
+        (direction === 'down' && currentDir === 'up') ||
+        (direction === 'left' && currentDir === 'right') ||
+        (direction === 'right' && currentDir === 'left')
       ) {
         return;
       }
       
       player.nextDirection = direction;
     }
+  });
+  
+  // Atirar
+  socket.on('shoot', () => {
+    const roomId = socket.data.roomId;
+    if (!roomId || !gameRooms.has(roomId)) return;
+    
+    const gameState = gameRooms.get(roomId);
+    createBullet(gameState, socket.id);
   });
   
   // Desconexão do jogador

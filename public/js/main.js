@@ -96,6 +96,44 @@ function setupSocketEvents() {
     }
   });
   
+  // Evento de coleta de arma
+  socket.on('gunCollected', () => {
+    console.log('Arma coletada! Botão de tiro deve aparecer.');
+    if (controls) {
+      controls.hasGun = true;
+      controls.updateShootButtonVisibility();
+      
+      // Adicionar notificação visual para o jogador
+      const notification = document.createElement('div');
+      notification.textContent = 'Arma coletada! Clique no botão 🎯 para atirar!';
+      notification.style.position = 'fixed';
+      notification.style.top = '50%';
+      notification.style.left = '50%';
+      notification.style.transform = 'translate(-50%, -50%)';
+      notification.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      notification.style.color = '#fff';
+      notification.style.padding = '15px';
+      notification.style.borderRadius = '5px';
+      notification.style.zIndex = '1001';
+      notification.style.fontFamily = "'Press Start 2P', cursive";
+      notification.style.fontSize = '12px';
+      notification.style.textAlign = 'center';
+      
+      document.body.appendChild(notification);
+      
+      // Remover a notificação após 3 segundos
+      setTimeout(() => {
+        document.body.removeChild(notification);
+      }, 3000);
+    }
+  });
+  
+  // Evento de jogador atingido
+  socket.on('playerHit', () => {
+    console.log('Você foi atingido!');
+    // Adicionar efeito visual ou sonoro aqui
+  });
+  
   // Evento de fim de jogo
   socket.on('gameOver', (data) => {
     if (game) {

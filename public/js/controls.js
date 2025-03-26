@@ -5,9 +5,10 @@
 class Controls {
   constructor(socket) {
     this.socket = socket;
-    this.direction = { x: 0, y: 0 };
+    this.direction = ''; // Inicializar como string vazia
     this.isMobile = this.checkIfMobile();
     this.touchControls = document.getElementById('mobile-controls');
+    this.hasGun = false; // Novo atributo para controlar se o jogador tem uma arma
     
     // Inicializar controles
     this.init();
@@ -21,6 +22,18 @@ class Controls {
       if (wasMobile !== this.isMobile) {
         this.updateControlsVisibility();
       }
+    });
+    
+    // Ouvir eventos de coleta de arma
+    this.socket.on('gunCollected', () => {
+      this.hasGun = true;
+      this.updateShootButtonVisibility();
+    });
+    
+    // Ouvir eventos de tiro
+    this.socket.on('playerHit', () => {
+      // Efeito visual ou sonoro quando o jogador é atingido
+      console.log('Jogador atingido!');
     });
   }
   
@@ -77,43 +90,46 @@ class Controls {
     document.addEventListener('keydown', (event) => {
       if (!this.socket) return;
       
-      let newDirection = { ...this.direction };
+      let newDirection = '';
       
       switch (event.key) {
         case 'ArrowUp':
         case 'w':
         case 'W':
-          if (this.direction.y !== 1) { // Não permitir movimento para baixo se estiver indo para cima
-            newDirection = { x: 0, y: -1 };
+          if (this.direction !== 'down') { // Não permitir movimento para baixo se estiver indo para cima
+            newDirection = 'up';
           }
           break;
         case 'ArrowDown':
         case 's':
         case 'S':
-          if (this.direction.y !== -1) { // Não permitir movimento para cima se estiver indo para baixo
-            newDirection = { x: 0, y: 1 };
+          if (this.direction !== 'up') { // Não permitir movimento para cima se estiver indo para baixo
+            newDirection = 'down';
           }
           break;
         case 'ArrowLeft':
         case 'a':
         case 'A':
-          if (this.direction.x !== 1) { // Não permitir movimento para direita se estiver indo para esquerda
-            newDirection = { x: -1, y: 0 };
+          if (this.direction !== 'right') { // Não permitir movimento para direita se estiver indo para esquerda
+            newDirection = 'left';
           }
           break;
         case 'ArrowRight':
         case 'd':
         case 'D':
-          if (this.direction.x !== -1) { // Não permitir movimento para esquerda se estiver indo para direita
-            newDirection = { x: 1, y: 0 };
+          if (this.direction !== 'left') { // Não permitir movimento para esquerda se estiver indo para direita
+            newDirection = 'right';
           }
           break;
+        case ' ': // Barra de espaço para atirar
+          this.shoot();
+          return;
         default:
           return; // Ignorar outras teclas
       }
       
       // Verificar se a direção mudou
-      if (newDirection.x !== this.direction.x || newDirection.y !== this.direction.y) {
+      if (newDirection !== '' && newDirection !== this.direction) {
         this.direction = newDirection;
         this.socket.emit('updateDirection', this.direction);
         console.log('Direção atualizada (teclado):', this.direction);
@@ -127,13 +143,14 @@ class Controls {
     const downBtn = document.getElementById('down-btn');
     const leftBtn = document.getElementById('left-btn');
     const rightBtn = document.getElementById('right-btn');
+    const shootBtn = document.getElementById('shoot-btn');
     
     // Função para lidar com eventos de toque
     const handleTouch = (newDirection) => {
       if (!this.socket) return;
       
       // Verificar se a direção mudou
-      if (newDirection.x !== this.direction.x || newDirection.y !== this.direction.y) {
+      if (newDirection !== this.direction) {
         this.direction = newDirection;
         this.socket.emit('updateDirection', this.direction);
         console.log('Direção atualizada (touch):', this.direction);
@@ -154,11 +171,21 @@ class Controls {
       });
     };
     
-    // Configurar eventos para cada botão
-    addEvents(upBtn, { x: 0, y: -1 });
-    addEvents(downBtn, { x: 0, y: 1 });
-    addEvents(leftBtn, { x: -1, y: 0 });
-    addEvents(rightBtn, { x: 1, y: 0 });
+    // Configurar eventos para os botões direcionais
+    addEvents(upBtn, 'up');
+    addEvents(downBtn, 'down');
+    addEvents(leftBtn, 'left');
+    addEvents(rightBtn, 'right');
+    
+    // Configurar evento para o botão de tiro
+    shootBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.shoot();
+    }, { passive: false });
+    
+    shootBtn.addEventListener('mousedown', () => {
+      this.shoot();
+    });
     
     // Prevenir comportamentos padrão de toque que podem interferir com o jogo
     this.touchControls.addEventListener('touchmove', (e) => {
@@ -190,26 +217,26 @@ class Controls {
       
       // Determinar a direção do swipe (se for significativo)
       if (Math.abs(diffX) > 30 || Math.abs(diffY) > 30) {
-        let newDirection = { ...this.direction };
+        let newDirection = '';
         
         if (Math.abs(diffX) > Math.abs(diffY)) {
           // Swipe horizontal
-          if (diffX > 0 && this.direction.x !== -1) {
-            newDirection = { x: 1, y: 0 };
-          } else if (diffX < 0 && this.direction.x !== 1) {
-            newDirection = { x: -1, y: 0 };
+          if (diffX > 0 && this.direction !== 'left') {
+            newDirection = 'right';
+          } else if (diffX < 0 && this.direction !== 'right') {
+            newDirection = 'left';
           }
         } else {
           // Swipe vertical
-          if (diffY > 0 && this.direction.y !== -1) {
-            newDirection = { x: 0, y: 1 };
-          } else if (diffY < 0 && this.direction.y !== 1) {
-            newDirection = { x: 0, y: -1 };
+          if (diffY > 0 && this.direction !== 'up') {
+            newDirection = 'down';
+          } else if (diffY < 0 && this.direction !== 'down') {
+            newDirection = 'up';
           }
         }
         
         // Verificar se a direção mudou
-        if (newDirection.x !== this.direction.x || newDirection.y !== this.direction.y) {
+        if (newDirection !== '' && newDirection !== this.direction) {
           this.direction = newDirection;
           this.socket.emit('updateDirection', this.direction);
           console.log('Direção atualizada (swipe):', this.direction);
@@ -218,9 +245,37 @@ class Controls {
     }, { passive: true });
   }
   
+  // Função para atirar
+  shoot() {
+    if (!this.socket || !this.hasGun) return;
+    
+    this.socket.emit('shoot');
+    console.log('Tiro disparado!');
+    
+    // Resetar o estado da arma
+    this.hasGun = false;
+    this.updateShootButtonVisibility();
+  }
+  
+  // Atualizar visibilidade do botão de tiro
+  updateShootButtonVisibility() {
+    const shootBtn = document.getElementById('shoot-btn');
+    if (shootBtn) {
+      if (this.hasGun) {
+        shootBtn.style.display = 'flex';
+        console.log('Botão de tiro exibido!');
+      } else {
+        shootBtn.style.display = 'none';
+        console.log('Botão de tiro ocultado!');
+      }
+    }
+  }
+  
   // Resetar direção
   reset() {
-    this.direction = { x: 0, y: 0 };
+    this.direction = '';
+    this.hasGun = false;
+    this.updateShootButtonVisibility();
   }
 }
 

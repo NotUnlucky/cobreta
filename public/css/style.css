@@ -238,6 +238,22 @@ input[type="text"]::placeholder {
   transform: scale(0.95);
 }
 
+/* Botão de tiro */
+#shoot-btn {
+  display: none; /* Escondido por padrão */
+  margin-top: 10px;
+  background-color: rgba(255, 0, 0, 0.7); /* Fundo vermelho para destacar */
+  border-color: #ff0000;
+  color: #fff;
+  font-size: 1.8rem;
+  position: fixed; /* Posicionamento fixo na tela */
+  bottom: 20px; /* 20px acima da parte inferior */
+  right: 20px; /* 20px da direita */
+  z-index: 1000; /* Garantir que fique acima de outros elementos */
+  width: 4rem;
+  height: 4rem;
+}
+
 /* Animações */
 @keyframes pulse {
   0% {
