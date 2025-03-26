@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configurações do jogo
 const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
-const TARGET_FPS = 30; // Reduzido para 30 FPS para diminuir o lag
+const TARGET_FPS = 10; // Reduzido para 10 FPS para minimizar o lag
 const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
 const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
 const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
@@ -336,7 +336,7 @@ io.on('connection', (socket) => {
     
     io.to(roomId).emit('gameStarted');
     
-    // Iniciar loop do jogo com limitação de 30 FPS
+    // Iniciar loop do jogo com limitação de 10 FPS
     const gameLoop = () => {
       const currentTime = Date.now();
       const deltaTime = currentTime - gameState.lastUpdateTime;
@@ -344,7 +344,7 @@ io.on('connection', (socket) => {
       // Acumular tempo para o próximo frame
       gameState.frameTimer += deltaTime;
       
-      // Atualizar apenas quando atingir o intervalo de frame (30 FPS)
+      // Atualizar apenas quando atingir o intervalo de frame (10 FPS)
       if (gameState.frameTimer >= FRAME_INTERVAL) {
         updateGameState(roomId);
         
