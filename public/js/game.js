@@ -20,6 +20,7 @@ class Game {
     this.winner = null;
     this.lastFrameTime = 0;
     this.animationFrameId = null;
+    this.shrinkTimer = 30; // Temporizador para o encolhimento da zona em segundos
     
     // Configurau00e7u00e3o de FPS
     this.targetFPS = 20; // Alterado para 20 FPS para um equilu00edbrio entre fluidez e desempenho
@@ -74,6 +75,10 @@ class Game {
           document.getElementById('score').textContent = this.score;
         }
       });
+      
+      // Atualizar contador de jogadores vivos
+      const alivePlayers = Array.from(this.players.values()).filter(p => p.alive).length;
+      document.getElementById('alive-players').textContent = alivePlayers;
     }
     
     // Atualizar comida
@@ -85,10 +90,13 @@ class Game {
     if (data.safeZone) {
       this.safeZone = data.safeZone;
     }
-    
-    // Atualizar contador de jogadores vivos
-    const alivePlayers = Array.from(this.players.values()).filter(p => p.alive).length;
-    document.getElementById('alive-players').textContent = alivePlayers;
+  }
+  
+  // Atualizar o temporizador de encolhimento da zona
+  updateShrinkTimer(data) {
+    if (data && data.seconds !== undefined) {
+      this.shrinkTimer = data.seconds;
+    }
   }
   
   // Processar fim de jogo
@@ -159,6 +167,9 @@ class Game {
     
     // Desenhar as cobras
     this.drawSnakes();
+    
+    // Desenhar o temporizador da zona
+    this.drawShrinkTimer();
   }
   
   // Desenhar a grade
@@ -208,36 +219,17 @@ class Game {
   
   // Desenhar a comida
   drawFood() {
-    this.ctx.fillStyle = '#ff0';
+    this.ctx.fillStyle = '#ff0000';
+    this.ctx.font = `${Math.floor(this.cellSize * 0.8)}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
     
     this.food.forEach(food => {
-      const x = food.x * this.cellSize;
-      const y = food.y * this.cellSize;
+      const x = food.x * this.cellSize + this.cellSize / 2;
+      const y = food.y * this.cellSize + this.cellSize / 2;
       
-      // Desenhar comida como um cu00edrculo brilhante
-      this.ctx.beginPath();
-      this.ctx.arc(
-        x + this.cellSize / 2,
-        y + this.cellSize / 2,
-        this.cellSize / 3,
-        0,
-        Math.PI * 2
-      );
-      this.ctx.fill();
-      
-      // Adicionar brilho
-      this.ctx.shadowColor = '#ff0';
-      this.ctx.shadowBlur = 10;
-      this.ctx.beginPath();
-      this.ctx.arc(
-        x + this.cellSize / 2,
-        y + this.cellSize / 2,
-        this.cellSize / 4,
-        0,
-        Math.PI * 2
-      );
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
+      // Desenhar comida como um emoji de mau00e7u00e3
+      this.ctx.fillText('\uD83C\uDF4E', x, y);
     });
   }
   
@@ -325,6 +317,23 @@ class Game {
       (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
       (B < 255 ? B < 1 ? 0 : B : 255)
     ).toString(16).slice(1);
+  }
+  
+  // Desenhar o temporizador de encolhimento da zona
+  drawShrinkTimer() {
+    // Configurar estilo do texto
+    this.ctx.fillStyle = '#FF0000';
+    this.ctx.font = '20px Arial';
+    this.ctx.textAlign = 'right';
+    this.ctx.textBaseline = 'top';
+    
+    // Formatar o tempo (minutos:segundos)
+    const minutes = Math.floor(this.shrinkTimer / 60);
+    const seconds = this.shrinkTimer % 60;
+    const formattedTime = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Desenhar o texto
+    this.ctx.fillText(`A zona fecha em: ${formattedTime}`, this.canvas.width - 10, 10);
   }
 }
 

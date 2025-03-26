@@ -49,8 +49,9 @@ function createGameRoom() {
     snakeMoveTimer: 0 // Temporizador para controle de movimento da cobra
   };
   
-  // Gerar comida inicial
-  for (let i = 0; i < 5; i++) {
+  // Gerar exatamente 3 comidas iniciais
+  gameState.food = [];
+  for (let i = 0; i < 3; i++) {
     spawnFood(gameState);
   }
   
@@ -60,6 +61,11 @@ function createGameRoom() {
 
 // Função para gerar comida aleatória
 function spawnFood(gameState) {
+  // Verificar se já atingiu o limite de 3 comidas
+  if (gameState.food.length >= 3) {
+    return; // Não gerar mais comida se já tiver 3
+  }
+  
   const x = Math.floor(Math.random() * gameState.gridSize);
   const y = Math.floor(Math.random() * gameState.gridSize);
   
@@ -69,7 +75,7 @@ function spawnFood(gameState) {
   const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
   
   if (distance <= gameState.safeZone.radius) {
-    gameState.food.push({ x, y });
+    gameState.food.push({ x, y, type: 'apple' }); // Adicionando tipo 'apple' para identificar
   } else {
     // Tentar novamente se estiver fora da zona
     spawnFood(gameState);
@@ -135,7 +141,38 @@ function updateGameState(roomId) {
     gameState.safeZone.radius -= SHRINK_AMOUNT;
     gameState.safeZone.nextShrinkTime = currentTime + SHRINK_INTERVAL;
     io.to(roomId).emit('zoneUpdate', gameState.safeZone);
+    
+    // Verificar e remover comidas que estão fora da zona segura após o encolhimento
+    const centerX = gameState.gridSize / 2;
+    const centerY = gameState.gridSize / 2;
+    const foodToRemove = [];
+    
+    gameState.food.forEach((food, index) => {
+      const distance = Math.sqrt(Math.pow(food.x - centerX, 2) + Math.pow(food.y - centerY, 2));
+      if (distance > gameState.safeZone.radius) {
+        foodToRemove.push(index);
+      }
+    });
+    
+    // Remover comidas de trás para frente para não afetar os índices
+    for (let i = foodToRemove.length - 1; i >= 0; i--) {
+      gameState.food.splice(foodToRemove[i], 1);
+    }
+    
+    // Gerar novas comidas para substituir as removidas
+    for (let i = 0; i < foodToRemove.length; i++) {
+      if (gameState.food.length < 3) {
+        spawnFood(gameState);
+      }
+    }
   }
+  
+  // Calcular tempo restante até o próximo encolhimento
+  const timeUntilShrink = Math.max(0, gameState.safeZone.nextShrinkTime - currentTime);
+  const secondsUntilShrink = Math.ceil(timeUntilShrink / 1000);
+  
+  // Enviar atualização do temporizador para os clientes
+  io.to(roomId).emit('shrinkTimer', { seconds: secondsUntilShrink });
   
   // Inicializar contadores de jogadores vivos
   let alivePlayers = 0;

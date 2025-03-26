@@ -81,6 +81,13 @@ function setupSocketEvents() {
     }
   });
   
+  // Evento de atualização do temporizador de encolhimento
+  socket.on('shrinkTimer', (timerData) => {
+    if (game) {
+      game.updateShrinkTimer(timerData);
+    }
+  });
+  
   // Evento de jogador morreu
   socket.on('playerDied', (playerId) => {
     if (game && playerId === ui.playerId) {
