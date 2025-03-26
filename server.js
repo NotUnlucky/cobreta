@@ -18,9 +18,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configurações do jogo
 const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
-const TARGET_FPS = 25; // Alterado para 20 FPS para um equilíbrio entre fluidez e desempenho
+const TARGET_FPS = 30; // Alterado para 30 FPS para maior fluidez
 const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
-const SNAKE_MOVE_INTERVAL = 350; // A cobra se move a cada 350ms, velocidade mais adequada para jogar
+const SNAKE_MOVE_INTERVAL = 250; // A cobra se move a cada 250ms, velocidade mais rápida
 const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
 const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
 const SHRINK_AMOUNT = 1; // Quantidade de células que a zona encolhe por vez

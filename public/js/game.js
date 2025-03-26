@@ -25,7 +25,7 @@ class Game {
     this.shrinkTimer = 30; // Temporizador para o encolhimento da zona em segundos
     
     // Configurau00e7u00e3o de FPS
-    this.targetFPS = 20; // Alterado para 20 FPS para um equilu00edbrio entre fluidez e desempenho
+    this.targetFPS = 30; // Alterado para 30 FPS para maior fluidez
     this.frameInterval = 1000 / this.targetFPS;
     this.frameTimer = 0;
     
