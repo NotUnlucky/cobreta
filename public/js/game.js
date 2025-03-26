@@ -22,7 +22,7 @@ class Game {
     this.animationFrameId = null;
     
     // Configurau00e7u00e3o de FPS
-    this.targetFPS = 10; // Reduzido para 10 FPS para minimizar o lag
+    this.targetFPS = 20; // Alterado para 20 FPS para um equilu00edbrio entre fluidez e desempenho
     this.frameInterval = 1000 / this.targetFPS;
     this.frameTimer = 0;
     
