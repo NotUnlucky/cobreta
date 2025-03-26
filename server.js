@@ -130,19 +130,32 @@ function updateGameState(roomId) {
   const deltaTime = currentTime - gameState.lastUpdateTime;
   gameState.lastUpdateTime = currentTime;
   
+  // Verificar se é hora de encolher a zona
+  if (currentTime >= gameState.safeZone.nextShrinkTime && gameState.safeZone.radius > 5) {
+    gameState.safeZone.radius -= SHRINK_AMOUNT;
+    gameState.safeZone.nextShrinkTime = currentTime + SHRINK_INTERVAL;
+    io.to(roomId).emit('zoneUpdate', gameState.safeZone);
+  }
+  
+  // Inicializar contadores de jogadores vivos
+  let alivePlayers = 0;
+  let lastAlivePlayer = null;
+  
+  // Contar jogadores vivos
+  gameState.players.forEach((player, playerId) => {
+    if (player.alive) {
+      alivePlayers++;
+      lastAlivePlayer = playerId;
+    }
+  });
+  
   // Verificar se é hora de mover a cobra
   if (gameState.snakeMoveTimer >= SNAKE_MOVE_INTERVAL) {
     gameState.snakeMoveTimer = 0;
     
     // Mover cobras
-    let alivePlayers = 0;
-    let lastAlivePlayer = null;
-    
     gameState.players.forEach((player, playerId) => {
       if (!player.alive) return;
-      
-      alivePlayers++;
-      lastAlivePlayer = playerId;
       
       // Atualizar direção
       player.direction = { ...player.nextDirection };
@@ -213,6 +226,16 @@ function updateGameState(roomId) {
       } else {
         // Gerar nova comida
         spawnFood(gameState);
+      }
+    });
+    
+    // Recontar jogadores vivos após movimentos
+    alivePlayers = 0;
+    lastAlivePlayer = null;
+    gameState.players.forEach((player, playerId) => {
+      if (player.alive) {
+        alivePlayers++;
+        lastAlivePlayer = playerId;
       }
     });
   }
