@@ -9,6 +9,7 @@ class Controls {
     this.isMobile = this.checkIfMobile();
     this.touchControls = document.getElementById('mobile-controls');
     this.hasGun = false; // Novo atributo para controlar se o jogador tem uma arma
+    this.hasDash = false; // Novo atributo para controlar se o jogador tem dash
     
     // Inicializar controles
     this.init();
@@ -28,6 +29,18 @@ class Controls {
     this.socket.on('gunCollected', () => {
       this.hasGun = true;
       this.updateShootButtonVisibility();
+    });
+    
+    // Ouvir eventos de coleta de dash
+    this.socket.on('dashCollected', () => {
+      this.hasDash = true;
+      this.updateDashButtonVisibility();
+    });
+    
+    // Ouvir eventos de fim de dash
+    this.socket.on('dashEnded', () => {
+      this.hasDash = false;
+      this.updateDashButtonVisibility();
     });
     
     // Ouvir eventos de tiro
@@ -71,18 +84,24 @@ class Controls {
   
   // Inicializar controles
   init() {
-    // Configurar visibilidade dos controles
-    this.updateControlsVisibility();
+    // Configurar controles de teclado
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
     
-    // Configurar controles de acordo com o dispositivo
+    // Configurar controles de touch
     if (this.isMobile) {
       this.setupTouchControls();
-      console.log('Controles touch inicializados');
     }
     
-    // Sempre configurar controles de teclado (para compatibilidade com teclados externos em dispositivos móveis)
-    this.setupKeyboardControls();
-    console.log('Controles de teclado inicializados');
+    // Configurar botão de tiro
+    const shootBtn = document.getElementById('shoot-btn');
+    shootBtn.addEventListener('click', this.handleShoot.bind(this));
+    
+    // Configurar botão de dash
+    const dashBtn = document.getElementById('dash-btn');
+    dashBtn.addEventListener('click', this.handleDash.bind(this));
+    
+    // Atualizar visibilidade dos controles
+    this.updateControlsVisibility();
   }
   
   // Configurar controles de teclado
@@ -276,6 +295,87 @@ class Controls {
     this.direction = '';
     this.hasGun = false;
     this.updateShootButtonVisibility();
+  }
+  
+  // Função para lidar com eventos de teclado
+  handleKeyDown(event) {
+    if (!this.socket) return;
+    
+    let newDirection = '';
+    
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+        if (this.direction !== 'down') { // Não permitir movimento para baixo se estiver indo para cima
+          newDirection = 'up';
+        }
+        break;
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        if (this.direction !== 'up') { // Não permitir movimento para cima se estiver indo para baixo
+          newDirection = 'down';
+        }
+        break;
+      case 'ArrowLeft':
+      case 'a':
+      case 'A':
+        if (this.direction !== 'right') { // Não permitir movimento para direita se estiver indo para esquerda
+          newDirection = 'left';
+        }
+        break;
+      case 'ArrowRight':
+      case 'd':
+      case 'D':
+        if (this.direction !== 'left') { // Não permitir movimento para esquerda se estiver indo para direita
+          newDirection = 'right';
+        }
+        break;
+      case ' ': // Barra de espaço para atirar
+        this.shoot();
+        return;
+      default:
+        return; // Ignorar outras teclas
+    }
+    
+    // Verificar se a direção mudou
+    if (newDirection !== '' && newDirection !== this.direction) {
+      this.direction = newDirection;
+      this.socket.emit('updateDirection', this.direction);
+      console.log('Direção atualizada (teclado):', this.direction);
+    }
+  }
+  
+  // Função para lidar com eventos de clique no botão de tiro
+  handleShoot() {
+    this.shoot();
+  }
+  
+  // Função para lidar com eventos de clique no botão de dash
+  handleDash() {
+    if (!this.socket || !this.hasDash) return;
+    
+    this.socket.emit('dash');
+    console.log('Dash ativado!');
+    
+    // Resetar o estado do dash
+    this.hasDash = false;
+    this.updateDashButtonVisibility();
+  }
+  
+  // Atualizar visibilidade do botão de dash
+  updateDashButtonVisibility() {
+    const dashBtn = document.getElementById('dash-btn');
+    if (dashBtn) {
+      if (this.hasDash) {
+        dashBtn.style.display = 'flex';
+        console.log('Botão de dash exibido!');
+      } else {
+        dashBtn.style.display = 'none';
+        console.log('Botão de dash ocultado!');
+      }
+    }
   }
 }
 

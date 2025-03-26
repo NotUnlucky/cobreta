@@ -254,6 +254,19 @@ input[type="text"]::placeholder {
   height: 4rem;
 }
 
+/* Botão de dash */
+#dash-btn {
+  display: none; /* Escondido por padrão */
+  margin-top: 10px;
+  background-color: rgba(255, 215, 0, 0.7); /* Fundo dourado para destacar */
+  border-color: #ffd700;
+  color: #fff;
+  font-size: 1.8rem;
+  position: fixed; /* Posicionamento fixo na tela */
+  bottom: 20px; /* 20px acima da parte inferior */
+  right: 90px; /* 90px da direita (ao lado do botão de tiro) */
+}
+
 /* Animações */
 @keyframes pulse {
   0% {

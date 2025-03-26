@@ -346,19 +346,38 @@ class Game {
       const x = powerup.x * this.cellSize + this.cellSize / 2;
       const y = powerup.y * this.cellSize + this.cellSize / 2;
       
-      // Desenhar fundo brilhante para o power-up
-      this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+      // Desenhar fundo brilhante para o power-up com cor diferente baseada no tipo
+      if (powerup.type === 'gun') {
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+      } else if (powerup.type === 'dash') {
+        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+      } else {
+        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+      }
+      
       this.ctx.beginPath();
       this.ctx.arc(x, y, this.cellSize * 0.7, 0, Math.PI * 2);
       this.ctx.fill();
       
-      // Desenhar power-up como um emoji de arma
+      // Desenhar power-up com emoji apropriado
       this.ctx.fillStyle = '#ffffff';
-      this.ctx.fillText('\uD83D\uDD2B', x, y); // Emoji de arma (pistola)
+      if (powerup.type === 'gun') {
+        this.ctx.fillText('\uD83D\uDD2B', x, y); // Emoji de arma (pistola)
+      } else if (powerup.type === 'dash') {
+        this.ctx.fillText('\u26A1', x, y); // Emoji de raio (dash)
+      }
       
       // Adicionar efeito pulsante
       const pulseSize = 1.2 + Math.sin(Date.now() / 200) * 0.2;
-      this.ctx.strokeStyle = '#00ff00';
+      
+      if (powerup.type === 'gun') {
+        this.ctx.strokeStyle = '#ff0000';
+      } else if (powerup.type === 'dash') {
+        this.ctx.strokeStyle = '#ffd700';
+      } else {
+        this.ctx.strokeStyle = '#00ff00';
+      }
+      
       this.ctx.lineWidth = 2;
       this.ctx.beginPath();
       this.ctx.arc(x, y, this.cellSize * 0.7 * pulseSize, 0, Math.PI * 2);

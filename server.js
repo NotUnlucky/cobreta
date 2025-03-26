@@ -102,7 +102,11 @@ function spawnPowerup(gameState) {
   const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
   
   if (distance <= gameState.safeZone.radius) {
-    gameState.powerups.push({ x, y, type: 'gun' }); // Power-up de arma
+    // Escolher aleatoriamente entre power-up de arma e dash
+    const powerupTypes = ['gun', 'dash'];
+    const randomType = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+    
+    gameState.powerups.push({ x, y, type: randomType });
   } else {
     // Tentar novamente se estiver fora da zona
     spawnPowerup(gameState);
@@ -135,13 +139,17 @@ function createSnake(gameState, playerId) {
   const snake = {
     id: playerId,
     segments: [],
-    direction: 'right',
-    nextDirection: 'right',
+    direction: '',  // Iniciar sem direção definida
+    nextDirection: '', // Iniciar sem direção definida
     alive: true,
     score: 0,
     color: getRandomColor(),
     hasGun: false, // Novo atributo para indicar se o jogador tem uma arma
-    canShoot: false // Novo atributo para controlar se o jogador pode atirar
+    canShoot: false, // Novo atributo para controlar se o jogador pode atirar
+    hasDash: false, // Novo atributo para indicar se o jogador tem dash
+    canDash: false, // Novo atributo para controlar se o jogador pode usar dash
+    isDashing: false, // Indica se o jogador está em modo dash
+    dashEndTime: 0 // Tempo em que o dash termina
   };
   
   // Adicionar segmentos iniciais
@@ -370,25 +378,39 @@ function updateGameState(roomId) {
     gameState.players.forEach((player, playerId) => {
       if (!player.alive) return;
       
+      // Verificar se o dash está ativo e se terminou
+      if (player.isDashing && currentTime >= player.dashEndTime) {
+        player.isDashing = false;
+        io.to(playerId).emit('dashEnded');
+      }
+      
       // Atualizar direção
       player.direction = player.nextDirection;
       
       // Mover a cabeça
       const head = { ...player.segments[0] };
       
+      // Só mover se houver uma direção definida
+      if (!player.direction) {
+        return; // Não mover se não houver direção definida
+      }
+      
+      // Determinar a distância a mover (normal ou dash)
+      const moveDistance = player.isDashing ? 4 : 1;
+      
       // Converter direção string para movimento
       switch (player.direction) {
         case 'up':
-          head.y -= 1;
+          head.y -= moveDistance;
           break;
         case 'down':
-          head.y += 1;
+          head.y += moveDistance;
           break;
         case 'left':
-          head.x -= 1;
+          head.x -= moveDistance;
           break;
         case 'right':
-          head.x += 1;
+          head.x += moveDistance;
           break;
         default:
           // Se não houver direção, não mover
@@ -453,6 +475,11 @@ function updateGameState(roomId) {
             player.canShoot = true;
             // Notificar o jogador que pegou uma arma
             io.to(playerId).emit('gunCollected');
+          } else if (powerup.type === 'dash') {
+            player.hasDash = true;
+            player.canDash = true;
+            // Notificar o jogador que pegou um dash
+            io.to(playerId).emit('dashCollected');
           }
           return false; // Remover o power-up
         }
@@ -519,6 +546,11 @@ function updateGameState(roomId) {
   
   // Atualizar temporizador de movimento da cobra
   gameState.snakeMoveTimer += deltaTime;
+  
+  // Limitar o valor máximo do temporizador para evitar movimentos muito rápidos após pausas ou lags
+  if (gameState.snakeMoveTimer > SNAKE_MOVE_INTERVAL * 1.5) {
+    gameState.snakeMoveTimer = SNAKE_MOVE_INTERVAL;
+  }
 }
 
 // Configurar Socket.IO
@@ -611,7 +643,7 @@ io.on('connection', (socket) => {
     gameState.gameStarted = true;
     gameState.lastUpdateTime = Date.now();
     gameState.frameTimer = 0; // Temporizador para controle de FPS
-    gameState.snakeMoveTimer = 0; // Temporizador para controle de movimento da cobra
+    gameState.snakeMoveTimer = SNAKE_MOVE_INTERVAL - 50; // Iniciar próximo do limite para evitar movimento rápido inicial
     
     io.to(roomId).emit('gameStarted');
     
@@ -659,20 +691,25 @@ io.on('connection', (socket) => {
     
     const gameState = gameRooms.get(roomId);
     const player = gameState.players.get(socket.id);
+    if (!player || !player.alive) return;
     
-    if (player && player.alive) {
-      // Evitar que a cobra volte sobre si mesma
-      const currentDir = player.direction;
-      if (
-        (direction === 'up' && currentDir === 'down') ||
-        (direction === 'down' && currentDir === 'up') ||
-        (direction === 'left' && currentDir === 'right') ||
-        (direction === 'right' && currentDir === 'left')
-      ) {
-        return;
-      }
-      
-      player.nextDirection = direction;
+    // Evitar que a cobra volte sobre si mesma
+    const currentDir = player.direction;
+    if (
+      (direction === 'up' && currentDir === 'down') ||
+      (direction === 'down' && currentDir === 'up') ||
+      (direction === 'left' && currentDir === 'right') ||
+      (direction === 'right' && currentDir === 'left')
+    ) {
+      return;
+    }
+    
+    // Atualizar direção
+    player.nextDirection = direction;
+    
+    // Ajustar o temporizador de movimento para evitar movimentos muito rápidos após mudar de direção
+    if (gameState.snakeMoveTimer > SNAKE_MOVE_INTERVAL / 2) {
+      gameState.snakeMoveTimer = Math.min(gameState.snakeMoveTimer, SNAKE_MOVE_INTERVAL - 50);
     }
   });
   
@@ -683,6 +720,27 @@ io.on('connection', (socket) => {
     
     const gameState = gameRooms.get(roomId);
     createBullet(gameState, socket.id);
+  });
+  
+  // Ativar dash
+  socket.on('dash', () => {
+    const roomId = socket.data.roomId;
+    if (!roomId || !gameRooms.has(roomId)) return;
+    
+    const gameState = gameRooms.get(roomId);
+    const player = gameState.players.get(socket.id);
+    if (!player || !player.alive || !player.hasDash || !player.canDash) return;
+    
+    // Ativar o dash
+    player.isDashing = true;
+    player.dashEndTime = Date.now() + 1500; // Dash dura 1.5 segundos
+    
+    // Impedir que o jogador use dash novamente até pegar outro power-up
+    player.canDash = false;
+    player.hasDash = false;
+    
+    // Notificar o cliente que o dash foi ativado
+    io.to(socket.id).emit('dashActivated');
   });
   
   // Desconexão do jogador
