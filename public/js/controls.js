@@ -11,31 +11,65 @@ class Controls {
     
     // Inicializar controles
     this.init();
+    
+    // Adicionar listener para mudanças de tamanho da janela
+    window.addEventListener('resize', () => {
+      const wasMobile = this.isMobile;
+      this.isMobile = this.checkIfMobile();
+      
+      // Se o estado mudou, atualizar a interface
+      if (wasMobile !== this.isMobile) {
+        this.updateControlsVisibility();
+      }
+    });
   }
   
   // Verificar se é dispositivo móvel
   checkIfMobile() {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                    window.innerWidth <= 768 || 
-                    ('ontouchstart' in window) || 
-                    (navigator.maxTouchPoints > 0);
+    // Verificação mais robusta para dispositivos móveis
+    const userAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const touchScreen = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    const smallScreen = window.innerWidth <= 768;
     
-    console.log('Dispositivo móvel detectado:', isMobile);
+    // Considerar dispositivo móvel se pelo menos dois critérios forem atendidos
+    // ou se for explicitamente um dispositivo móvel pelo userAgent
+    const isMobile = userAgent || (touchScreen && smallScreen);
+    
+    console.log('Detecção de dispositivo móvel:', {
+      userAgent,
+      touchScreen,
+      smallScreen,
+      resultado: isMobile
+    });
+    
     return isMobile;
+  }
+  
+  // Atualizar visibilidade dos controles com base no tipo de dispositivo
+  updateControlsVisibility() {
+    if (this.isMobile) {
+      this.touchControls.classList.remove('hidden');
+      console.log('Controles touch ativados');
+    } else {
+      this.touchControls.classList.add('hidden');
+      console.log('Controles touch desativados');
+    }
   }
   
   // Inicializar controles
   init() {
-    // Mostrar controles touch em dispositivos móveis
+    // Configurar visibilidade dos controles
+    this.updateControlsVisibility();
+    
+    // Configurar controles de acordo com o dispositivo
     if (this.isMobile) {
-      this.touchControls.classList.remove('hidden');
       this.setupTouchControls();
       console.log('Controles touch inicializados');
-    } else {
-      this.touchControls.classList.add('hidden');
-      this.setupKeyboardControls();
-      console.log('Controles de teclado inicializados');
     }
+    
+    // Sempre configurar controles de teclado (para compatibilidade com teclados externos em dispositivos móveis)
+    this.setupKeyboardControls();
+    console.log('Controles de teclado inicializados');
   }
   
   // Configurar controles de teclado
