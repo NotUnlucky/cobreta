@@ -21,6 +21,11 @@ class Game {
     this.lastFrameTime = 0;
     this.animationFrameId = null;
     
+    // Configurau00e7u00e3o de FPS
+    this.targetFPS = 30;
+    this.frameInterval = 1000 / this.targetFPS;
+    this.frameTimer = 0;
+    
     // Redimensionar o canvas
     this.resize();
     
@@ -104,15 +109,28 @@ class Game {
     
     const animate = (timestamp) => {
       const deltaTime = timestamp - this.lastFrameTime;
-      this.lastFrameTime = timestamp;
       
-      this.render(deltaTime);
+      // Limitar a taxa de quadros para 30 FPS
+      this.frameTimer += deltaTime;
+      
+      if (this.frameTimer >= this.frameInterval) {
+        this.lastFrameTime = timestamp;
+        
+        // Renderizar o jogo
+        this.render(deltaTime);
+        
+        // Resetar o temporizador de quadros, mantendo o excedente para o pru00f3ximo quadro
+        // Isso garante uma taxa de quadros mais estável
+        this.frameTimer %= this.frameInterval;
+      }
       
       if (!this.gameOver) {
         this.animationFrameId = requestAnimationFrame(animate);
       }
     };
     
+    this.lastFrameTime = performance.now();
+    this.frameTimer = 0;
     this.animationFrameId = requestAnimationFrame(animate);
   }
   

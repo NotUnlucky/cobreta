@@ -18,7 +18,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configurações do jogo
 const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
-const TICK_RATE = 10; // Frames por segundo
+const TARGET_FPS = 30; // Reduzido para 30 FPS para diminuir o lag
+const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
 const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
 const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
 const SHRINK_AMOUNT = 1; // Quantidade de células que a zona encolhe por vez
@@ -42,7 +43,8 @@ function createGameRoom() {
     gameStarted: false,
     gameOver: false,
     winner: null,
-    lastUpdateTime: Date.now()
+    lastUpdateTime: Date.now(),
+    frameTimer: 0 // Temporizador para controle de FPS
   };
   
   // Gerar comida inicial
@@ -330,26 +332,45 @@ io.on('connection', (socket) => {
     const gameState = gameRooms.get(roomId);
     gameState.gameStarted = true;
     gameState.lastUpdateTime = Date.now();
+    gameState.frameTimer = 0; // Temporizador para controle de FPS
     
     io.to(roomId).emit('gameStarted');
     
-    // Iniciar loop do jogo
-    const gameInterval = setInterval(() => {
-      updateGameState(roomId);
+    // Iniciar loop do jogo com limitação de 30 FPS
+    const gameLoop = () => {
+      const currentTime = Date.now();
+      const deltaTime = currentTime - gameState.lastUpdateTime;
+      
+      // Acumular tempo para o próximo frame
+      gameState.frameTimer += deltaTime;
+      
+      // Atualizar apenas quando atingir o intervalo de frame (30 FPS)
+      if (gameState.frameTimer >= FRAME_INTERVAL) {
+        updateGameState(roomId);
+        
+        // Manter o excedente para o próximo frame para manter a taxa de quadros estável
+        gameState.frameTimer %= FRAME_INTERVAL;
+        gameState.lastUpdateTime = currentTime;
+      }
       
       // Verificar se o jogo acabou ou a sala está vazia
-      const gameState = gameRooms.get(roomId);
-      if (!gameState || gameState.gameOver || gameState.players.size === 0) {
-        clearInterval(gameInterval);
-        
+      const updatedGameState = gameRooms.get(roomId);
+      if (!updatedGameState || updatedGameState.gameOver || updatedGameState.players.size === 0) {
         // Remover sala após 1 minuto se o jogo acabou
-        if (gameState && gameState.gameOver) {
+        if (updatedGameState && updatedGameState.gameOver) {
           setTimeout(() => {
             gameRooms.delete(roomId);
           }, 60000);
         }
+        return; // Parar o loop
       }
-    }, 1000 / TICK_RATE);
+      
+      // Continuar o loop
+      setTimeout(gameLoop, 1);
+    };
+    
+    // Iniciar o loop do jogo
+    gameLoop();
   });
   
   // Atualizar direção da cobra
