@@ -10,6 +10,7 @@ class Controls {
     this.touchControls = document.getElementById('mobile-controls');
     this.hasGun = false; // Novo atributo para controlar se o jogador tem uma arma
     this.hasDash = false; // Novo atributo para controlar se o jogador tem dash
+    this.isFullscreen = false; // Controle do estado da tela cheia
     
     // Inicializar controles
     this.init();
@@ -91,6 +92,9 @@ class Controls {
     if (this.isMobile) {
       this.setupTouchControls();
     }
+    
+    // Inicializar controle de tela cheia
+    this.initFullscreenControl();
     
     // Configurar botão de tiro
     const shootBtn = document.getElementById('shoot-btn');
@@ -262,6 +266,61 @@ class Controls {
         }
       }
     }, { passive: true });
+  }
+  
+  // Inicializar controle de tela cheia
+  initFullscreenControl() {
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    
+    if (fullscreenBtn) {
+      fullscreenBtn.addEventListener('click', () => {
+        this.toggleFullscreen();
+      });
+    }
+  }
+  
+  // Alternar modo de tela cheia
+  toggleFullscreen() {
+    if (!this.isFullscreen) {
+      // Entrar em tela cheia
+      const element = document.documentElement;
+      
+      if (element.requestFullscreen) {
+        element.requestFullscreen();
+      } else if (element.mozRequestFullScreen) { // Firefox
+        element.mozRequestFullScreen();
+      } else if (element.webkitRequestFullscreen) { // Chrome, Safari e Opera
+        element.webkitRequestFullscreen();
+      } else if (element.msRequestFullscreen) { // IE/Edge
+        element.msRequestFullscreen();
+      }
+      
+      // Atualizar ícone
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+      if (fullscreenBtn) {
+        fullscreenBtn.innerHTML = '\u26F7';
+      }
+    } else {
+      // Sair da tela cheia
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.mozCancelFullScreen) { // Firefox
+        document.mozCancelFullScreen();
+      } else if (document.webkitExitFullscreen) { // Chrome, Safari e Opera
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) { // IE/Edge
+        document.msExitFullscreen();
+      }
+      
+      // Atualizar ícone
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+      if (fullscreenBtn) {
+        fullscreenBtn.innerHTML = '\u26F6';
+      }
+    }
+    
+    // Inverter estado
+    this.isFullscreen = !this.isFullscreen;
   }
   
   // Função para atirar

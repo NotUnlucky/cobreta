@@ -267,6 +267,34 @@ input[type="text"]::placeholder {
   right: 90px; /* 90px da direita (ao lado do botão de tiro) */
 }
 
+/* Botão de tela cheia */
+#fullscreen-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 3.5rem;
+  height: 3.5rem;
+  background-color: rgba(0, 0, 0, 0.7);
+  border: 2px solid #0f0;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+  color: #0f0;
+  cursor: pointer;
+  z-index: 1000;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+#fullscreen-btn:active {
+  background-color: rgba(0, 255, 0, 0.3);
+  transform: scale(0.95);
+}
+
 /* Animações */
 @keyframes pulse {
   0% {
