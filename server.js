@@ -15,30 +15,28 @@ const io = socketIO(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configurações do jogo
 const GRID_SIZE = 40;
 const INITIAL_SNAKE_LENGTH = 3;
-const TARGET_FPS = 30; // Alterado para 30 FPS para maior fluidez
-const FRAME_INTERVAL = 1000 / TARGET_FPS; // Intervalo entre frames em ms
-const SNAKE_MOVE_INTERVAL = 250; // A cobra se move a cada 250ms, velocidade mais rápida
-const FOOD_SPAWN_RATE = 0.02; // Probabilidade de comida aparecer por tick
-const SHRINK_INTERVAL = 30000; // Intervalo para encolher a zona (30 segundos)
-const SHRINK_AMOUNT = 1; // Quantidade de células que a zona encolhe por vez
-const POWERUP_SPAWN_RATE = 0.005; // Probabilidade de power-up aparecer por tick
-const BULLET_SPEED = 0.5; // Velocidade dos tiros em células por frame
+const TARGET_FPS = 25; 
+const FRAME_INTERVAL = 1000 / TARGET_FPS; 
+const SNAKE_MOVE_INTERVAL = 250; 
+const FOOD_SPAWN_RATE = 0.02; 
+const SHRINK_INTERVAL = 30000; 
+const POWERUP_SPAWN_RATE = 0.005; 
+const BULLET_SPEED = 0.5; 
 
-// Armazenar salas de jogo
+
 const gameRooms = new Map();
 
-// Função para criar uma nova sala
+
 function createGameRoom() {
-  const roomId = uuidv4().substring(0, 6).toUpperCase(); // Código da sala de 6 caracteres
+  const roomId = uuidv4().substring(0, 6).toUpperCase();
   
   const gameState = {
     players: new Map(),
     food: [],
-    powerups: [], // Array para armazenar power-ups
-    bullets: [], // Array para armazenar tiros
+    powerups: [], 
+    bullets: [], 
     gridSize: GRID_SIZE,
     safeZone: {
       radius: GRID_SIZE / 2,
@@ -49,11 +47,11 @@ function createGameRoom() {
     gameOver: false,
     winner: null,
     lastUpdateTime: Date.now(),
-    frameTimer: 0, // Temporizador para controle de FPS
-    snakeMoveTimer: 0 // Temporizador para controle de movimento da cobra
+    frameTimer: 0,
+    snakeMoveTimer: 0 
   };
   
-  // Gerar exatamente 3 comidas iniciais
+  
   gameState.food = [];
   for (let i = 0; i < 3; i++) {
     spawnFood(gameState);
@@ -63,69 +61,68 @@ function createGameRoom() {
   return roomId;
 }
 
-// Função para gerar comida aleatória
+
 function spawnFood(gameState) {
-  // Verificar se já atingiu o limite de 3 comidas
+  
   if (gameState.food.length >= 3) {
-    return; // Não gerar mais comida se já tiver 3
+    return; 
   }
   
   const x = Math.floor(Math.random() * gameState.gridSize);
   const y = Math.floor(Math.random() * gameState.gridSize);
   
-  // Verificar se está dentro da zona segura
+  
   const centerX = gameState.gridSize / 2;
   const centerY = gameState.gridSize / 2;
   const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
   
   if (distance <= gameState.safeZone.radius) {
-    gameState.food.push({ x, y, type: 'apple' }); // Adicionando tipo 'apple' para identificar
+    gameState.food.push({ x, y, type: 'apple' }); 
   } else {
-    // Tentar novamente se estiver fora da zona
+    
     spawnFood(gameState);
   }
 }
 
-// Função para gerar power-up aleatoriamente
+
 function spawnPowerup(gameState) {
-  // Verificar se já atingiu o limite de 2 power-ups
+  
   if (gameState.powerups.length >= 2) {
-    return; // Não gerar mais power-ups se já tiver 2
+    return; 
   }
   
   const x = Math.floor(Math.random() * gameState.gridSize);
   const y = Math.floor(Math.random() * gameState.gridSize);
   
-  // Verificar se está dentro da zona segura
+  
   const centerX = gameState.gridSize / 2;
   const centerY = gameState.gridSize / 2;
   const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
   
   if (distance <= gameState.safeZone.radius) {
-    // Escolher aleatoriamente entre power-up de arma e dash
+   
     const powerupTypes = ['gun', 'dash'];
     const randomType = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
     
     gameState.powerups.push({ x, y, type: randomType });
   } else {
-    // Tentar novamente se estiver fora da zona
+   
     spawnPowerup(gameState);
   }
 }
 
-// Função para criar uma cobra para um novo jogador
+
 function createSnake(gameState, playerId) {
-  // Posição aleatória dentro da zona segura
+ 
   let x, y;
   let validPosition = false;
   
-  // Tentar encontrar uma posição válida para a cobra
+  
   while (!validPosition) {
-    // Posição aleatória
+   
     x = Math.floor(Math.random() * gameState.gridSize);
     y = Math.floor(Math.random() * gameState.gridSize);
     
-    // Verificar se está dentro da zona segura
     const centerX = gameState.gridSize / 2;
     const centerY = gameState.gridSize / 2;
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
@@ -135,24 +132,24 @@ function createSnake(gameState, playerId) {
     }
   }
   
-  // Criar cobra
+ 
   const snake = {
     id: playerId,
     segments: [],
-    direction: '',  // Iniciar sem direção definida
-    nextDirection: '', // Iniciar sem direção definida
+    direction: '', 
+    nextDirection: '', 
     alive: true,
     score: 0,
     color: getRandomColor(),
-    hasGun: false, // Novo atributo para indicar se o jogador tem uma arma
-    canShoot: false, // Novo atributo para controlar se o jogador pode atirar
-    hasDash: false, // Novo atributo para indicar se o jogador tem dash
-    canDash: false, // Novo atributo para controlar se o jogador pode usar dash
-    isDashing: false, // Indica se o jogador está em modo dash
-    dashEndTime: 0 // Tempo em que o dash termina
+    hasGun: false, 
+    canShoot: false, 
+    hasDash: false, 
+    canDash: false, 
+    isDashing: false, 
+    dashEndTime: 0 
   };
   
-  // Adicionar segmentos iniciais
+
   for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
     snake.segments.unshift({ x: x - i, y });
   }
@@ -245,7 +242,6 @@ function updateBullets(gameState) {
       return;
     }
     
-    // Verificar se o tiro saiu da zona segura
     const centerX = gameState.gridSize / 2;
     const centerY = gameState.gridSize / 2;
     const distance = Math.sqrt(Math.pow(bullet.x - centerX, 2) + Math.pow(bullet.y - centerY, 2));
